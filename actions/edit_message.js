@@ -23,8 +23,14 @@ section: "Messaging",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const names = ['Command Message', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	return data.storage === "0" ? `${names[parseInt(data.storage)]}` : `${names[parseInt(data.storage)]} (${data.varName})`;
+	const names = [
+		'Command Message', 
+		'Temp Variable', 
+		'Server Variable', 
+		'Global Variable'
+	];
+	const index = parseInt(data.storage);
+	return data.storage === "0" ? `${names[index]}` : `${names[index]} (${data.varName})`;
 },
 
 //---------------------------------------------------------------------
@@ -35,7 +41,7 @@ subtitle: function(data) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["storage", "varName", "message", "storage2", "varName2"],
+fields: ["storage", "varName", "message"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -55,7 +61,12 @@ fields: ["storage", "varName", "message", "storage2", "varName2"],
 
 html: function(isEvent, data) {
 	return `
-<div><p>This action has been modified by DBM Mods</p></div><br>
+<div>
+	<p>
+		<u>Note:</u><br>
+		Bots are only able to edit their own messages.
+	</p>
+</div><br>
 <div>
 	<div style="float: left; width: 35%;">
 		Source Message:<br>
@@ -70,19 +81,7 @@ html: function(isEvent, data) {
 </div><br><br><br>
 <div style="padding-top: 8px;">
 	Edited Message Content:<br>
-	<textarea id="message" rows="7" placeholder="Insert message here... (Optional)" style="width: 94%; font-family: monospace; white-space: nowrap; resize: none;"></textarea>
-</div><br>
-<div>
-	<div style="float: left; width: 35%;">
-		Source Embed Object:<br>
-		<select id="storage2" class="round" onchange="glob.refreshVariableList(this, 'varNameContainer2')">
-			${data.variables[1]}
-		</select>
-	</div>
-	<div id="varNameContainer2" style="float: right; width: 60%;">
-		Variable Name:<br>
-		<input id="varName2" placeholder="Optional" class="round" type="text" list="variableList"><br>
-	</div>
+	<textarea id="message" rows="9" style="width: 99%; font-family: monospace; white-space: nowrap; resize: none;"></textarea>
 </div>`
 },
 
@@ -98,7 +97,6 @@ init: function() {
 	const {glob, document} = this;
 
 	glob.messageChange(document.getElementById('storage'), 'varNameContainer');
-	glob.refreshVariableList(document.getElementById('storage2'), 'varNameContainer2');
 },
 
 //---------------------------------------------------------------------
@@ -111,23 +109,17 @@ init: function() {
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-
 	const storage = parseInt(data.storage);
 	const varName = this.evalMessage(data.varName, cache);
 	const message = this.getMessage(storage, varName, cache);
-
-	const content = this.evalMessage(data.message, cache);
-
-	const storage2 = parseInt(data.storage2);
-	const varName2 = this.evalMessage(data.varName2, cache);
-	const embed = this.getVariable(storage2, varName2, cache);
-
 	if(Array.isArray(message)) {
-		this.callListFunc(message, 'edit', [content, embed]).then(function() {
+		const content = this.evalMessage(data.message, cache);
+		this.callListFunc(message, 'edit', [content]).then(function() {
 			this.callNextAction(cache);
 		}.bind(this));
 	} else if(message && message.delete) {
-		message.edit(content, embed).then(function() {
+		const content = this.evalMessage(data.message, cache);
+		message.edit(content).then(function() {
 			this.callNextAction(cache);
 		}.bind(this)).catch(this.displayError.bind(this, data, cache));
 	} else {

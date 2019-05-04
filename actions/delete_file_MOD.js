@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Create Role",
+name: "Delete File",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Create Role",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Role Control",
+section: "Deprecated",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,20 +23,29 @@ section: "Role Control",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	return `${data.roleName}`;
+	return `Delete [${data.filePath}]`;
 },
 
 //---------------------------------------------------------------------
-// Action Storage Function
+// DBM Mods Manager Variables (Optional but nice to have!)
 //
-// Stores the relevant variable info for the editor.
+// These are variables that DBM Mods Manager uses to show information
+// about the mods for people to see in the list.
 //---------------------------------------------------------------------
 
-variableStorage: function(data, varType) {
-	const type = parseInt(data.storage);
-	if(type !== varType) return;
-	return ([data.varName, 'Role']);
-},
+// Who made the mod (If not set, defaults to "DBM Mods")
+author: "EGGSY",
+
+// The version of the mod (Defaults to 1.0.0)
+version: "1.8.6",
+
+// A short description to show on the mod line for this mod (Must be on a single line)
+short_description: "Deletes files -_-",
+
+// If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+
+//---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Fields
@@ -46,57 +55,43 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["roleName", "hoist", "mentionable", "color", "position", "storage", "varName"],
+fields: ["filePath"],
 
 //---------------------------------------------------------------------
 // Command HTML
 //
 // This function returns a string containing the HTML used for
-// editting actions. 
+// editting actions.
 //
 // The "isEvent" parameter will be true if this action is being used
-// for an event. Due to their nature, events lack certain information, 
+// for an event. Due to their nature, events lack certain information,
 // so edit the HTML to reflect this.
 //
-// The "data" parameter stores constants for select elements to use. 
+// The "data" parameter stores constants for select elements to use.
 // Each is an array: index 0 for commands, index 1 for events.
-// The names are: sendTargets, members, roles, channels, 
+// The names are: sendTargets, members, roles, channels,
 //                messages, servers, variables
 //---------------------------------------------------------------------
 
 html: function(isEvent, data) {
 	return `
-Name:<br>
-<input id="roleName" class="round" type="text"><br>
-<div style="float: left; width: 50%;">
-	Display Separate from Online Users:<br>
-	<select id="hoist" class="round" style="width: 90%;">
-		<option value="true">Yes</option>
-		<option value="false" selected>No</option>
-	</select><br>
-	Mentionable:<br>
-	<select id="mentionable" class="round" style="width: 90%;">
-		<option value="true" selected>Yes</option>
-		<option value="false">No</option>
-	</select><br>
-</div>
-<div style="float: right; width: 50%;">
-	Color:<br>
-	<input id="color" class="round" type="text" placeholder="Leave blank for default!"><br>
-	Position:<br>
-	<input id="position" class="round" type="text" placeholder="Leave blank for default!" style="width: 90%;"><br>
-</div>
 <div>
-	<div style="float: left; width: 35%;">
-		Store In:<br>
-		<select id="storage" class="round" onchange="glob.variableChange(this, 'varNameContainer')">
-			${data.variables[0]}
-		</select>
-	</div>
-	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
-		Variable Name:<br>
-		<input id="varName" class="round" type="text"><br>
-	</div>
+    <p>
+        <u>Mod Info:</u><br>
+        Made by EGGSY<br>
+    </p><br>
+    <div style="float: left; width: 99%">
+        File Path:<br>
+        <textarea id="filePath" class="round" style="width 99%; resize: none;" type="textarea" rows="2" cols="60"></textarea><br>
+    </div><br>
+    <p>
+        If you want to delete something in current directory, you can add '.' (dot) before '/':<br>
+            e.g:<br>
+            My bot directory is: "<b>/root/myBot/</b>"<br>
+            I want to delete: "<b>/root/myBot/delete.txt</b>"<br>
+            Then I need to write "<b>./delete.txt</b>" in the field.<br><br>
+        <i>Please be careful while using this mod. Don't forget there is no turning back after deleting the file.</i><br>
+    </p><br>
 </div>`
 },
 
@@ -108,45 +103,40 @@ Name:<br>
 // functions for the DOM elements.
 //---------------------------------------------------------------------
 
-init: function() {
-	const {glob, document} = this;
-
-	glob.variableChange(document.getElementById('storage'), 'varNameContainer');
-},
+init: function() {},
 
 //---------------------------------------------------------------------
 // Action Bot Function
 //
 // This is the function for the action within the Bot's Action class.
-// Keep in mind event calls won't have access to the "msg" parameter, 
+// Keep in mind event calls won't have access to the "msg" parameter,
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
-action: function(cache) {
-	const data = cache.actions[cache.index];
-	const server = cache.server;
-	const roleData = {};
-	if(data.roleName) {
-		roleData.name = this.evalMessage(data.roleName, cache);
-	}
-	if(data.color) {
-		roleData.color = this.evalMessage(data.color, cache);
-	}
-	if(data.position) {
-		roleData.position = parseInt(data.position);
-	}
-	roleData.hoist = JSON.parse(data.hoist);
-	roleData.mentionable = JSON.parse(data.mentionable);
-	if(server && server.createRole) {
-		const storage = parseInt(data.storage);
-		server.createRole(roleData).then(function(role) {
-			const varName = this.evalMessage(data.varName, cache);
-			this.storeValue(role, storage, varName, cache);
-			this.callNextAction(cache);
-		}.bind(this)).catch(this.displayError.bind(this, data, cache));
-	} else {
-		this.callNextAction(cache);
-	}
+action: function (cache) {
+    const data = cache.actions[cache.index];
+
+    try {
+        const fs = require('fs');
+        const filePath = this.evalMessage(data.filePath, cache);
+        if (filePath) {
+            fs.exists(`${filePath}`, function(exists) {
+                if(exists) {
+                    fs.unlink(`${filePath}`, (err) => {
+                        if (err) return console.log(`Something went wrong while deleting: [${err}]`);
+                        console.log(`Sucessfully deleted [${filePath}].`);
+                      });
+                } else {
+                    console.log('File not found, nothing to delete.');
+                }
+              });
+        } else {
+        console.log(`File path is missing.`);
+        }
+    } catch (err) {
+        console.log("ERROR!" + err.stack ? err.stack : err);
+    }
+    this.callNextAction(cache);
 },
 
 //---------------------------------------------------------------------

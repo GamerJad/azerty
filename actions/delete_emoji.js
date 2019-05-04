@@ -111,7 +111,7 @@ action: function(cache) {
 	const varName = this.evalMessage(data.varName, cache);
 	let emoji;
 	if(type === 0) {
-		emoji = server.emojis.find(element => element.name === varName);
+		emoji = server.emojis.find('name', varName);
 	} else {
 		emoji = this.getVariable(type, varName, cache);
 	}

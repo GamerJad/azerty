@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Delete Channel",
+name: "Check If Member",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,23 @@ name: "Delete Channel",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Channel Control",
+section: "Conditions",
+
+//---------------------------------------------------------------------
+// DBM Mods Manager Variables (Optional but nice to have!)
+//
+// These are variables that DBM Mods Manager uses to show information
+// about the mods for people to see in the list.
+//---------------------------------------------------------------------
+
+// Who made the mod (If not set, defaults to "DBM Mods")
+author: "Lasse",
+
+// The version of the mod (Defaults to 1.0.0)
+version: "1.8.8", //Added in 1.8.8
+
+// A short description to show on the mod line for this mod (Must be on a single line)
+short_description: "Check if a member meets the conditions.",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,16 +39,8 @@ section: "Channel Control",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const names = [
-		'Same Channel', 
-		'Mentioned Channel', 
-		'1st Server Channel', 
-		'Temp Variable', 
-		'Server Variable', 
-		'Global Variable'
-	];
-	const index = parseInt(data.storage);
-	return parseInt(data.storage) < 3 ? `${names[index]}` : `${names[index]} - ${data.varName}`;
+	const results = ["Continue Actions", "Stop Action Sequence", "Jump To Action", "Jump Forward Actions"];
+	return `If True: ${results[parseInt(data.iftrue)]} ~ If False: ${results[parseInt(data.iffalse)]}`;
 },
 
 //---------------------------------------------------------------------
@@ -43,21 +51,21 @@ subtitle: function(data) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["storage", "varName"],
+fields: ["member", "varName", "info", "varName2", "iftrue", "iftrueVal", "iffalse", "iffalseVal"],
 
 //---------------------------------------------------------------------
 // Command HTML
 //
 // This function returns a string containing the HTML used for
-// editting actions. 
+// editting actions.
 //
 // The "isEvent" parameter will be true if this action is being used
-// for an event. Due to their nature, events lack certain information, 
+// for an event. Due to their nature, events lack certain information,
 // so edit the HTML to reflect this.
 //
-// The "data" parameter stores constants for select elements to use. 
+// The "data" parameter stores constants for select elements to use.
 // Each is an array: index 0 for commands, index 1 for events.
-// The names are: sendTargets, members, roles, channels, 
+// The names are: sendTargets, members, roles, channels,
 //                messages, servers, variables
 //---------------------------------------------------------------------
 
@@ -65,15 +73,33 @@ html: function(isEvent, data) {
 	return `
 <div>
 	<div style="float: left; width: 35%;">
-		Source Channel:<br>
-		<select id="storage" class="round" onchange="glob.channelChange(this, 'varNameContainer')">
-			${data.channels[isEvent ? 1 : 0]}
+		Source Member:<br>
+		<select id="member" class="round" onchange="glob.memberChange(this, 'varNameContainer')">
+			${data.members[isEvent ? 1 : 0]}
 		</select>
 	</div>
 	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
 		Variable Name:<br>
 		<input id="varName" class="round" type="text" list="variableList"><br>
 	</div>
+</div><br><br><br>
+<div style="padding-top: 8px;">
+	<div style="float: left; width: 35%;">
+		Check if Member:<br>
+		<select id="info" class="round">
+			<option value="0" selected>Is Bot</option>
+			<option value="2">Is Kickable</option>
+			<option value="1">Is Bannable</option>
+			<option value="4">Is In Voice Channel</option>
+		</select>
+	</div>
+	<div id="varNameContainer2" style="display: none; float: right; width: 60%;">
+		Variable Name:<br>
+		<input id="varName2" class="round" type="text" list="variableList2"><br>
+	</div>
+</div><br><br><br>
+<div style="padding-top: 8px;">
+	${data.conditions[0]}
 </div>`
 },
 
@@ -88,33 +114,55 @@ html: function(isEvent, data) {
 init: function() {
 	const {glob, document} = this;
 
-	glob.channelChange(document.getElementById('storage'), 'varNameContainer');
+	glob.memberChange(document.getElementById('member'), 'varNameContainer');
+	glob.onChangeTrue(document.getElementById('iftrue'));
+	glob.onChangeFalse(document.getElementById('iffalse'));
 },
 
 //---------------------------------------------------------------------
 // Action Bot Function
 //
 // This is the function for the action within the Bot's Action class.
-// Keep in mind event calls won't have access to the "msg" parameter, 
+// Keep in mind event calls won't have access to the "msg" parameter,
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const storage = parseInt(data.storage);
+
+	const type = parseInt(data.member);
 	const varName = this.evalMessage(data.varName, cache);
-	const channel = this.getChannel(storage, varName, cache);
-	if(Array.isArray(channel)) {
-		this.callListFunc(channel, 'delete', []).then(function() {
-			this.callNextAction(cache);
-		}.bind(this));
-	} else if(channel && channel.delete) {
-		channel.delete().then(function(channel) {
-			this.callNextAction(cache);
-		}.bind(this)).catch(this.displayError.bind(this, data, cache));
-	} else {
-		this.callNextAction(cache);
+	const member = this.getMember(type, varName, cache);
+
+	const type2 = parseInt(data.role);
+	const varName2 = this.evalMessage(data.varName2, cache);
+	const info = parseInt(data.info);
+
+	let result = false;
+	switch(info) {
+		case 0:
+			result = Boolean(member.user.bot);
+			break;
+		case 1:
+			result = Boolean(member.bannable);
+			break;
+		case 2:
+			result = Boolean(member.kickable);
+			break;
+		// case 3:
+		// 	result = Boolean(member.speaking);
+		// 	break; //Do not ask me why this is not working... ~Lasse
+		case 4:
+			if(member.voiceChannelID !== undefined) {
+				result = true;
+			} else {
+				result = false;
+			}
+			break;
+		default:
+			break;
 	}
+	this.executeResults(result, data, cache);
 },
 
 //---------------------------------------------------------------------

@@ -6,8 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Edit Channel",
-//Changed by Lasse in 1.8.7 from "Edit channel" to "Edit Channel"
+name: "Youtube Time Converter",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -15,7 +14,8 @@ name: "Edit Channel",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Channel Control",
+section: "Deprecated",
+
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -24,9 +24,7 @@ section: "Channel Control",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const names = ['Same Channel', 'Mentioned Channel', 'Default Channel', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	const index = parseInt(data.storage);
-	return index < 3 ? `${names[index]}` : `${names[index]} - ${data.varName}`;
+return `Convert into ${data.varName}`;
 },
 
 //---------------------------------------------------------------------
@@ -36,19 +34,31 @@ subtitle: function(data) {
 	 // about the mods for people to see in the list.
 	 //---------------------------------------------------------------------
 
-	 // Who made the mod (If not set, defaults to "DBM Mods")
-	 author: "Lasse",
+ // Who made the mod (If not set, defaults to "DBM Mods")
+ author: "General Wrex", //Idea by Tresmos
 
-	 // The version of the mod (Defaults to 1.0.0)
-	 version: "1.8.7", //Added in 1.8.2
+ // The version of the mod (Defaults to 1.0.0)
+ version: "1.8.6", //Added in 1.8.6
 
-	 // A short description to show on the mod line for this mod (Must be on a single line)
-	 short_description: "Edits a specific channel",
+ // A short description to show on the mod line for this mod (Must be on a single line)
+ short_description: "Converts YouTube Time Code into numeric time.",
 
-	 // If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+ // If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
 
 
-	 //---------------------------------------------------------------------
+ //---------------------------------------------------------------------
+
+//---------------------------------------------------------------------
+// Action Storage Function
+//
+// Stores the relevant variable info for the editor.
+//---------------------------------------------------------------------
+
+variableStorage: function(data, varType) {
+		const type = parseInt(data.storage);
+		if(type !== varType) return;
+		return ([data.varName, 'Time']);
+	},
 
 
 //---------------------------------------------------------------------
@@ -59,7 +69,7 @@ subtitle: function(data) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["storage", "varName", "toChange", "newState"],
+fields: ["ytTime", "storage", "varName"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -79,42 +89,27 @@ fields: ["storage", "varName", "toChange", "newState"],
 
 html: function(isEvent, data) {
 	return `
-	<div>
+<div>
 		<p>
 			<u>Mod Info:</u><br>
-			Created by Lasse!
+			Created by General Wrex!
 		</p>
-	</div><br>
+</div><br>
 <div>
+<br>
+    Youtube Time:<br>
+	<textarea id="ytTime" class="round" style="width: 35%; resize: none;" type="textarea" rows="1" cols="20"></textarea><br>
 	<div style="float: left; width: 35%;">
-		Source Channel:<br>
-		<select id="storage" class="round" onchange="glob.channelChange(this, 'varNameContainer')">
-			${data.channels[isEvent ? 1 : 0]}
+		Store In:<br>
+		<select id="storage" class="round">
+			${data.variables[1]}
 		</select>
 	</div>
-	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
+	<div id="varNameContainer" style="float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList"><br>
+		<input id="varName" class="round" type="text"><br>
 	</div>
-</div><br><br><br>
-<div>
-	<div style="float: left; width: 35%;">
-		Change:<br>
-		<select id="toChange" class="round">
-			<option value="name">Name</option>
-			<option value="topic">Topic</option>
-    	<option value="position">Position</option>
-    	<option value="bitrate">Bitrate</option>
-    	<option value="userLimit">User Limit</option>
-			<option value="parent">Category ID</option>
-		</select>
-	</div><br>
-<div>
-	<div style="float: left; width: 80%;">
-		Change to:<br>
-		<input id="newState" class="round" type="text"><br>
-	</div>
-</div>`
+</div>`;
 },
 
 //---------------------------------------------------------------------
@@ -125,11 +120,7 @@ html: function(isEvent, data) {
 // functions for the DOM elements.
 //---------------------------------------------------------------------
 
-init: function() {
-	const {glob, document} = this;
-
-	glob.channelChange(document.getElementById('storage'), 'varNameContainer');
-},
+init: function() {},
 
 //---------------------------------------------------------------------
 // Action Bot Function
@@ -139,30 +130,75 @@ init: function() {
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
-action: function(cache) {
+action: function (cache) {
+
 	const data = cache.actions[cache.index];
 	const storage = parseInt(data.storage);
 	const varName = this.evalMessage(data.varName, cache);
-	const channel = this.getChannel(storage, varName, cache);
-	const toChange = parseInt(data.toChange);
-	const newState = this.evalMessage(data.newState, cache);
-	//const reason = parseInt(data.reason);
-	if(data.toChange === "topic") {
-		channel.edit({topic: newState});
-	} else if(data.toChange === "name") {
-		channel.edit({name: newState});
-	} else if(data.toChange === "position") {
-		channel.edit({position: newState});
-	} else if(data.toChange === "bitrate") {
-		channel.edit({bitrate: newState});
-	} else if(data.toChange === "userLimit") {
-		channel.edit({userLimit: newState});
-	} else if(data.toChange === "parent") {
-		channel.setParent(newState); //Added by Lasse in 1.8.7
-	} else {
-		console.log('This should never been shown!');
-	}
-	this.callNextAction(cache);
+
+	const ytTime = this.evalMessage(data.ytTime, cache);
+
+	// Taken from https://www.npmjs.com/package/youtube-duration-format
+	function parseDuration(PT, format) {
+		var output = [];
+		var durationInSec = 0;
+		var matches = PT.match(/P(?:(\d*)Y)?(?:(\d*)M)?(?:(\d*)W)?(?:(\d*)D)?T?(?:(\d*)H)?(?:(\d*)M)?(?:(\d*)S)?/i);
+		var parts = [
+		  { // years
+			pos: 1,
+			multiplier: 86400 * 365
+		  },
+		  { // months
+			pos: 2,
+			multiplier: 86400 * 30
+		  },
+		  { // weeks
+			pos: 3,
+			multiplier: 604800
+		  },
+		  { // days
+			pos: 4,
+			multiplier: 86400
+		  },
+		  { // hours
+			pos: 5,
+			multiplier: 3600
+		  },
+		  { // minutes
+			pos: 6,
+			multiplier: 60
+		  },
+		  { // seconds
+			pos: 7,
+			multiplier: 1
+		  }
+		];
+
+		for (var i = 0; i < parts.length; i++) {
+		  if (typeof matches[parts[i].pos] != 'undefined') {
+			durationInSec += parseInt(matches[parts[i].pos]) * parts[i].multiplier;
+		  }
+		}
+		var totalSec = durationInSec;
+		// Hours extraction
+		if (durationInSec > 3599) {
+		  output.push(parseInt(durationInSec / 3600));
+		  durationInSec %= 3600;
+		}
+		// Minutes extraction with leading zero
+		output.push(('0' + parseInt(durationInSec / 60)).slice(-2));
+		// Seconds extraction with leading zero
+		output.push(('0' + durationInSec % 60).slice(-2));
+		if (format === undefined)
+		  return output.join(':');
+		else if (format === 'sec')
+		  return totalSec;
+	};
+
+
+	this.storeValue(parseDuration(ytTime), storage, varName, cache);
+
+    this.callNextAction(cache);
 },
 
 //---------------------------------------------------------------------
@@ -175,9 +211,6 @@ action: function(cache) {
 //---------------------------------------------------------------------
 
 mod: function(DBM) {
-	// aliases for backwards compatibility, in the bot only, DBM will still say the action is missing.
-	DBM.Actions["Edit channel"] = DBM.Actions["Edit Channel"];
-	//Thank You Wrex!
 }
 
 }; // End of module

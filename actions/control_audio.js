@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Create Role",
+name: "Control Audio",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Create Role",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Role Control",
+section: "Audio Control",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,19 +23,8 @@ section: "Role Control",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	return `${data.roleName}`;
-},
-
-//---------------------------------------------------------------------
-// Action Storage Function
-//
-// Stores the relevant variable info for the editor.
-//---------------------------------------------------------------------
-
-variableStorage: function(data, varType) {
-	const type = parseInt(data.storage);
-	if(type !== varType) return;
-	return ([data.varName, 'Role']);
+	const actions = ["Stop Playing", "Pause Audio", "Resume Audio"];
+	return `${actions[parseInt(data.action)]}`;
 },
 
 //---------------------------------------------------------------------
@@ -46,7 +35,7 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["roleName", "hoist", "mentionable", "color", "position", "storage", "varName"],
+fields: ["action"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -66,38 +55,14 @@ fields: ["roleName", "hoist", "mentionable", "color", "position", "storage", "va
 
 html: function(isEvent, data) {
 	return `
-Name:<br>
-<input id="roleName" class="round" type="text"><br>
-<div style="float: left; width: 50%;">
-	Display Separate from Online Users:<br>
-	<select id="hoist" class="round" style="width: 90%;">
-		<option value="true">Yes</option>
-		<option value="false" selected>No</option>
-	</select><br>
-	Mentionable:<br>
-	<select id="mentionable" class="round" style="width: 90%;">
-		<option value="true" selected>Yes</option>
-		<option value="false">No</option>
-	</select><br>
-</div>
-<div style="float: right; width: 50%;">
-	Color:<br>
-	<input id="color" class="round" type="text" placeholder="Leave blank for default!"><br>
-	Position:<br>
-	<input id="position" class="round" type="text" placeholder="Leave blank for default!" style="width: 90%;"><br>
-</div>
-<div>
-	<div style="float: left; width: 35%;">
-		Store In:<br>
-		<select id="storage" class="round" onchange="glob.variableChange(this, 'varNameContainer')">
-			${data.variables[0]}
-		</select>
-	</div>
-	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
-		Variable Name:<br>
-		<input id="varName" class="round" type="text"><br>
-	</div>
-</div>`
+<div style="float: left; width: 80%;">
+	Audio Action:<br>
+	<select id="action" class="round">
+		<option value="0" selected>Stop Playing</option>
+		<option value="1">Pause Audio</option>
+		<option value="2">Resume Audio</option>
+	</select>
+</div>`;
 },
 
 //---------------------------------------------------------------------
@@ -109,9 +74,6 @@ Name:<br>
 //---------------------------------------------------------------------
 
 init: function() {
-	const {glob, document} = this;
-
-	glob.variableChange(document.getElementById('storage'), 'varNameContainer');
 },
 
 //---------------------------------------------------------------------
@@ -124,29 +86,28 @@ init: function() {
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
+	const Audio = this.getDBM().Audio;
 	const server = cache.server;
-	const roleData = {};
-	if(data.roleName) {
-		roleData.name = this.evalMessage(data.roleName, cache);
+	let dispatcher;
+	if(server) {
+		dispatcher = Audio.dispatchers[server.id];
+	} 
+	if(dispatcher) {
+		const action = parseInt(data.action);
+		switch(action) {
+			case 0:
+				dispatcher._forceEnd = true;
+				dispatcher.end();
+				break;
+			case 1:
+				dispatcher.pause();
+				break;
+			case 2:
+				dispatcher.resume();
+				break;
+		}
 	}
-	if(data.color) {
-		roleData.color = this.evalMessage(data.color, cache);
-	}
-	if(data.position) {
-		roleData.position = parseInt(data.position);
-	}
-	roleData.hoist = JSON.parse(data.hoist);
-	roleData.mentionable = JSON.parse(data.mentionable);
-	if(server && server.createRole) {
-		const storage = parseInt(data.storage);
-		server.createRole(roleData).then(function(role) {
-			const varName = this.evalMessage(data.varName, cache);
-			this.storeValue(role, storage, varName, cache);
-			this.callNextAction(cache);
-		}.bind(this)).catch(this.displayError.bind(this, data, cache));
-	} else {
-		this.callNextAction(cache);
-	}
+	this.callNextAction(cache);
 },
 
 //---------------------------------------------------------------------

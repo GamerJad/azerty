@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Create Role",
+name: "Add Reaction",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Create Role",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Role Control",
+section: "Messaging",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,19 +23,9 @@ section: "Role Control",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	return `${data.roleName}`;
-},
-
-//---------------------------------------------------------------------
-// Action Storage Function
-//
-// Stores the relevant variable info for the editor.
-//---------------------------------------------------------------------
-
-variableStorage: function(data, varType) {
-	const type = parseInt(data.storage);
-	if(type !== varType) return;
-	return ([data.varName, 'Role']);
+	const names = ['Command Message', 'Temp Variable', 'Server Variable', 'Global Variable'];
+	const index = parseInt(data.storage);
+	return data.storage === "0" ? `Add Reaction to ${names[index]}` : `Add Reaction to ${names[index]} (${data.varName})`;
 },
 
 //---------------------------------------------------------------------
@@ -46,7 +36,7 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["roleName", "hoist", "mentionable", "color", "position", "storage", "varName"],
+fields: ["storage", "varName", "emoji", "varName2", "varName3"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -66,36 +56,36 @@ fields: ["roleName", "hoist", "mentionable", "color", "position", "storage", "va
 
 html: function(isEvent, data) {
 	return `
-Name:<br>
-<input id="roleName" class="round" type="text"><br>
-<div style="float: left; width: 50%;">
-	Display Separate from Online Users:<br>
-	<select id="hoist" class="round" style="width: 90%;">
-		<option value="true">Yes</option>
-		<option value="false" selected>No</option>
-	</select><br>
-	Mentionable:<br>
-	<select id="mentionable" class="round" style="width: 90%;">
-		<option value="true" selected>Yes</option>
-		<option value="false">No</option>
-	</select><br>
-</div>
-<div style="float: right; width: 50%;">
-	Color:<br>
-	<input id="color" class="round" type="text" placeholder="Leave blank for default!"><br>
-	Position:<br>
-	<input id="position" class="round" type="text" placeholder="Leave blank for default!" style="width: 90%;"><br>
-</div>
 <div>
 	<div style="float: left; width: 35%;">
-		Store In:<br>
-		<select id="storage" class="round" onchange="glob.variableChange(this, 'varNameContainer')">
-			${data.variables[0]}
+		Source Message:<br>
+		<select id="storage" class="round" onchange="glob.messageChange(this, 'varNameContainer')">
+			${data.messages[isEvent ? 1 : 0]}
 		</select>
 	</div>
 	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName" class="round" type="text"><br>
+		<input id="varName" class="round" type="text" list="variableList"><br>
+	</div>
+</div><br><br><br>
+<div style="padding-top: 8px;">
+	<div style="float: left; width: 35%;">
+		Source Emoji:<br>
+		<select id="emoji" name="second-list" class="round" onchange="glob.onChange1(this)">
+			<option value="4" selected>Direct Emoji</option>
+			<option value="0">Custom Emoji</option>
+			<option value="1">Temp Variable</option>
+			<option value="2">Server Variable</option>
+			<option value="3">Global Variable</option>
+		</select>
+	</div>
+	<div id="varNameContainer2" style="float: right; width: 60%;">
+		<span id="extName">Emoji  (right-click -> Insert Emoji)</span>:<br>
+		<input id="varName2" class="round" type="text">
+	</div>
+	<div id="varNameContainer3" style="float: right; width: 60%; display: none;">
+		Variable Name:<br>
+		<input id="varName3" class="round" type="text" list="variableList2">
 	</div>
 </div>`
 },
@@ -111,7 +101,26 @@ Name:<br>
 init: function() {
 	const {glob, document} = this;
 
-	glob.variableChange(document.getElementById('storage'), 'varNameContainer');
+	glob.onChange1 = function(event) {
+		const value = parseInt(event.value);
+		const varNameInput = document.getElementById("extName");
+		if(value === 0) {
+			varNameInput.innerHTML = "Emoji Name";
+			document.getElementById('varNameContainer3').style.display = 'none';
+			document.getElementById('varNameContainer2').style.display = null;
+		} else if(value === 4) {
+			varNameInput.innerHTML = "Emoji  (right-click -> Insert Emoji)";
+			document.getElementById('varNameContainer3').style.display = 'none';
+			document.getElementById('varNameContainer2').style.display = null;
+		} else {
+			glob.onChangeBasic(event, "varNameContainer3");
+			document.getElementById('varNameContainer3').style.display = null;
+			document.getElementById('varNameContainer2').style.display = 'none';
+		}
+	};
+
+	glob.onChange1(document.getElementById('emoji'));
+	glob.messageChange(document.getElementById('storage'), 'varNameContainer');
 },
 
 //---------------------------------------------------------------------
@@ -124,24 +133,26 @@ init: function() {
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const server = cache.server;
-	const roleData = {};
-	if(data.roleName) {
-		roleData.name = this.evalMessage(data.roleName, cache);
+	const storage = parseInt(data.storage);
+	const varName = this.evalMessage(data.varName, cache);
+	const message = this.getMessage(storage, varName, cache);
+
+	const type = parseInt(data.emoji);
+	let emoji;
+	if(type === 4) {
+		emoji = this.evalMessage(data.varName2, cache);
+	} else if(type === 0) {
+		emoji = this.getDBM().Bot.bot.emojis.find('name', this.evalMessage(data.varName2, cache));
+	} else {
+		emoji = this.getVariable(type, this.evalMessage(data.varName3, cache), cache);
 	}
-	if(data.color) {
-		roleData.color = this.evalMessage(data.color, cache);
-	}
-	if(data.position) {
-		roleData.position = parseInt(data.position);
-	}
-	roleData.hoist = JSON.parse(data.hoist);
-	roleData.mentionable = JSON.parse(data.mentionable);
-	if(server && server.createRole) {
-		const storage = parseInt(data.storage);
-		server.createRole(roleData).then(function(role) {
-			const varName = this.evalMessage(data.varName, cache);
-			this.storeValue(role, storage, varName, cache);
+
+	if(Array.isArray(message)) {
+		this.callListFunc(message, 'react', [emoji]).then(function() {
+			this.callNextAction(cache);
+		}.bind(this));
+	} else if(emoji && message && message.react) {
+		message.react(emoji).then(function() {
 			this.callNextAction(cache);
 		}.bind(this)).catch(this.displayError.bind(this, data, cache));
 	} else {
