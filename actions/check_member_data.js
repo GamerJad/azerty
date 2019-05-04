@@ -14,7 +14,7 @@ name: "Check Member Data",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Conditions",
+section: "Deprecated",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -26,6 +26,22 @@ subtitle: function(data) {
 	const results = ["Continue Actions", "Stop Action Sequence", "Jump To Action", "Jump Forward Actions"];
 	return `If True: ${results[parseInt(data.iftrue)]} ~ If False: ${results[parseInt(data.iffalse)]}`;
 },
+
+	//---------------------------------------------------------------------
+		 // DBM Mods Manager Variables (Optional but nice to have!)
+		 //
+		 // These are variables that DBM Mods Manager uses to show information
+		 // about the mods for people to see in the list.
+		 //---------------------------------------------------------------------
+	
+		 // Who made the mod (If not set, defaults to "DBM Mods")
+		 author: "DBM & NetLuis",
+	
+		 // The version of the mod (Defaults to 1.0.0)
+		 version: "1.9.4", //Added in 1.9.4
+	
+		 // A short description to show on the mod line for this mod (Must be on a single line)
+		 short_description: "Added more options to default action.",
 
 //---------------------------------------------------------------------
 // Action Fields
@@ -55,6 +71,7 @@ fields: ["member", "varName", "dataName", "comparison", "value", "iftrue", "iftr
 
 html: function(isEvent, data) {
 	return `
+	<div><p>This action has been modified by DBM Mods.</p></div><br>
 <div>
 	<div style="float: left; width: 35%;">
 		Member:<br>
@@ -82,6 +99,11 @@ html: function(isEvent, data) {
 			<option value="4">Greater Than</option>
 			<option value="5">Includes</option>
 			<option value="6">Matches Regex</option>
+			<option value="7">Length is Bigger Than</option>
+			<option value="8">Length is Smaller Than</option>
+			<option value="9">Length Equals</option>
+			<option value="10">Starts With</option>
+			<option value="11">Ends With</option>
 		</select>
 	</div>
 </div><br><br><br>
@@ -155,6 +177,21 @@ action: function(cache) {
 			case 6:
 				result = Boolean(val1.match(new RegExp('^' + val2 + '$', 'i')));
 				break;
+			case 7: // Case 7-11 Added by NetLuis
+				result = Boolean(val1.length > val2);
+				break;
+			case 8:
+				result = Boolean(val1.length < val2);
+				break;
+			case 9:
+			  result = Boolean(val1.length == val2);
+			  break;
+			case 10:
+			  result = val1.startsWith(val2);
+			  break;
+			case 11:
+			  result = val1.endsWith(val2);
+			  break;
 		}
 	}
 	this.executeResults(result, data, cache);
