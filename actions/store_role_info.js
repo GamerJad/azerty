@@ -24,9 +24,31 @@ section: "Role Control",
 
 subtitle: function(data) {
 	const roles = ['Mentioned Role', '1st Author Role', '1st Server Role', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	const info = ['Role Object', 'Role ID', 'Role Name', 'Role Color', 'Role Position', 'Role Timestamp', 'Role Is Mentionable?', 'Role Is Separate From Others?']
+	const info = ['Role Object', 'Role ID', 'Role Name', 'Role Color', 'Role Position', 'Role Timestamp', 'Role Is Mentionable?', 'Role Is Separate From Others?', 'Role Is Managed?', 'Role Member List']
 	return `${roles[parseInt(data.role)]} - ${info[parseInt(data.info)]}`;
 },
+
+
+//---------------------------------------------------------------------
+// DBM Mods Manager Variables (Optional but nice to have!)
+//
+// These are variables that DBM Mods Manager uses to show information
+// about the mods for people to see in the list.
+//---------------------------------------------------------------------
+
+// Who made the mod (If not set, defaults to "DBM Mods")
+author: "DBM & Lasse",
+
+// The version of the mod (Defaults to 1.0.0)
+version: "1.9.2", //Added in 1.9.2
+
+// A short description to show on the mod line for this mod (Must be on a single line)
+short_description: "More options for default DBM action.",
+
+// If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+
+//---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -58,7 +80,11 @@ variableStorage: function(data, varType) {
 			break;
 		case 6:
 		case 7:
+		case 8:
 			dataType = 'Boolean';
+			break;
+		case 9:
+			dataType = 'Member List';
 			break;
 	}
 	return ([data.varName2, dataType]);
@@ -92,6 +118,7 @@ fields: ["role", "varName", "info", "storage", "varName2"],
 
 html: function(isEvent, data) {
 	return `
+	<div><p>This action has been modified by DBM Mods.</p></div><br>
 <div>
 	<div style="float: left; width: 35%;">
 		Source Role:<br>
@@ -114,8 +141,10 @@ html: function(isEvent, data) {
 			<option value="3">Role Color</option>
 			<option value="4">Role Position</option>
 			<option value="5">Role Timestamp</option>
+			<option value="9">Role Members</option>
 			<option value="6">Role Is Mentionable?</option>
 			<option value="7">Role Is Separate From Others?</option>
+			<option value="8">Role Is Managed By Bot/Integration</option>
 		</select>
 	</div>
 </div><br>
@@ -190,6 +219,12 @@ action: function(cache) {
 			break;
 		case 7:
 			result = targetRole.hoist;
+			break;
+		case 8:
+			result = targetRole.managed;
+			break;
+		case 9:
+			result = targetRole.members.array();
 			break;
 		default:
 			break;

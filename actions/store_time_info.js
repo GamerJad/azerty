@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Transform List",
+name: "Store Time Info",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Transform List",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Lists and Loops",
+section: "Other Stuff",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,8 +23,8 @@ section: "Lists and Loops",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const list = ['Server Members', 'Server Channels', 'Server Roles', 'Server Emojis', 'All Bot Servers', 'Mentioned User Roles', 'Command Author Roles', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	return `Transform ${list[parseInt(data.list)]}`;
+	const time = ['Year', 'Month (Number)', 'Day of the Month', 'Hour', 'Minute', 'Second', 'Milisecond', 'Month (text)'];
+	return `${time[parseInt(data.type)]}`;
 },
 
 //---------------------------------------------------------------------
@@ -36,7 +36,11 @@ subtitle: function(data) {
 variableStorage: function(data, varType) {
 	const type = parseInt(data.storage);
 	if(type !== varType) return;
-	return ([data.varName2, 'List']);
+	let result = "Number";
+	if(data.type === "7") {
+		result = "Text";
+	}
+	return ([data.varName, result]);
 },
 
 //---------------------------------------------------------------------
@@ -47,7 +51,7 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["list", "varName", "transform", "null", "storage", "varName2"],
+fields: ["type", "storage", "varName"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -68,37 +72,30 @@ fields: ["list", "varName", "transform", "null", "storage", "varName2"],
 html: function(isEvent, data) {
 	return `
 <div>
-	<div style="float: left; width: 35%;">
-		Source List:<br>
-		<select id="list" class="round" onchange="glob.listChange(this, 'varNameContainer')">
-			${data.lists[isEvent ? 1 : 0]}
+	<div style="padding-top: 8px; width: 70%;">
+		Time Info:<br>
+		<select id="type" class="round">
+			<option value="0" selected>Year</option>
+			<option value="1">Month (Number)</option>
+			<option value="7">Month (Text)</option>
+			<option value="2">Day of the Month</option>
+			<option value="3">Hour</option>
+			<option value="4">Minute</option>
+			<option value="5">Second</option>
+			<option value="6">Milisecond</option>
 		</select>
 	</div>
-	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
-		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList">
-	</div>
-</div><br><br><br><br>
-<div style="display: table; width: 100%;">
-	<div style="display: table-cell;">
-		Transform Eval:
-		<input id="transform" class="round" type="text" name="is-eval" value="item">
-	</div>
-	<div style="display: table-cell;">
-		Null Value:
-		<input id="null" class="round" type="text" name="is-eval">
-	</div>
 </div><br>
-<div style="padding-top: 8px;">
+<div>
 	<div style="float: left; width: 35%;">
 		Store In:<br>
 		<select id="storage" class="round">
 			${data.variables[1]}
 		</select>
 	</div>
-	<div id="varNameContainer2" style="float: right; width: 60%;">
+	<div id="varNameContainer" style="float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName2" class="round" type="text">
+		<input id="varName" class="round" type="text"><br>
 	</div>
 </div>`
 },
@@ -112,9 +109,6 @@ html: function(isEvent, data) {
 //---------------------------------------------------------------------
 
 init: function() {
-	const {glob, document} = this;
-
-	glob.listChange(document.getElementById('list'), 'varNameContainer');
 },
 
 //---------------------------------------------------------------------
@@ -127,45 +121,42 @@ init: function() {
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const storage = parseInt(data.list);
-	const varName = this.evalMessage(data.varName, cache);
-	const list = this.getList(storage, varName, cache);
-
-	let result = [];
-	const code = this.evalMessage(data.transform, cache);
-	const nullVal = this.evalMessage(data.null, cache);
-	let defaultVal;
-
-	try {
-		defaultVal = eval(nullVal);
-	} catch(e) {
-		this.displayError(data, cache, e);
-		defaultVal = '';
+	const type = parseInt(data.type);
+	let result;
+	switch(type) {
+		case 0:
+			result = new Date().getFullYear();
+			break;
+		case 1:
+			result = new Date().getMonth() + 1;
+			break;
+		case 2:
+			result = new Date().getDate();
+			break;
+		case 3:
+			result = new Date().getHours();
+			break;
+		case 4:
+			result = new Date().getMinutes();
+			break;
+		case 5:
+			result = new Date().getSeconds();
+			break;
+		case 6:
+			result = new Date().getMiliseconds();
+			break;
+		case 7:
+			const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+			result = months[(new Date().getMonth())];
+		default:
+			break;
 	}
-
-	for(let i = 0; i < list.length; i++) {
-		const item = list[i];
-		try {
-			const val = eval(code);
-			if(val) {
-				result.push(val);
-			} else if(defaultVal) {
-				result.push(defaultVal);
-			}
-		} catch(e) {
-			this.displayError(data, cache, e);
-			if(defaultVal) {
-				result.push(defaultVal);
-			}
-		}
+	//console.log((new Date()).year)
+	if(result !== undefined) {
+		const storage = parseInt(data.storage);
+		const varName = this.evalMessage(data.varName, cache);
+		this.storeValue(result, storage, varName, cache);
 	}
-
-	if(result) {
-		const varName2 = this.evalMessage(data.varName2, cache);
-		const storage2 = parseInt(data.storage);
-		this.storeValue(result, storage2, varName2, cache);
-	}
-
 	this.callNextAction(cache);
 },
 

@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Store Member Data",
+name: "Store Member Things",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Store Member Data",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Deprecated",
+section: "Member Control",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -24,9 +24,30 @@ section: "Deprecated",
 
 subtitle: function(data) {
 	const members = ['Mentioned User', 'Command Author', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	const storage = ['', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	return `${members[parseInt(data.member)]} - ${storage[parseInt(data.storage)]} (${data.varName2})`;
+	const info = ['Join date', 'Voice Channel ID', 'Last Message', 'Is kickable?', 'Is bot?', 'Discriminator','Account Creation Date', 'Tag'];
+	return `${members[parseInt(data.member)]} - ${info[parseInt(data.info)]}`;
 },
+
+//---------------------------------------------------------------------
+	 // DBM Mods Manager Variables (Optional but nice to have!)
+	 //
+	 // These are variables that DBM Mods Manager uses to show information
+	 // about the mods for people to see in the list.
+	 //---------------------------------------------------------------------
+
+	 // Who made the mod (If not set, defaults to "DBM Mods")
+	 author: "Lasse",
+
+	 // The version of the mod (Defaults to 1.0.0)
+	 version: "1.8.8", //Added in 1.8.5
+
+	 // A short description to show on the mod line for this mod (Must be on a single line)
+	 short_description: "Stores Members Information",
+
+	 // If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+
+	 //---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -37,7 +58,35 @@ subtitle: function(data) {
 variableStorage: function(data, varType) {
 	const type = parseInt(data.storage);
 	if(type !== varType) return;
-	return ([data.varName2, 'Unknown Type']);
+	const info = parseInt(data.info);
+	let dataType = 'Unknown Type';
+	switch(info) {
+		case 0:
+			dataType = "Text";
+			break;
+		case 1:
+			dataType = "Number";
+			break;
+		case 2:
+			dataType = "Text";
+			break;
+		case 3:
+			dataType = "Boolean";
+			break;
+		case 4:
+			dataType = "Boolean";
+			break;
+		case 5:
+			dataType = "Text";
+			break;
+		case 6:
+			dataType = "Date";
+			break;
+		case 7:
+			dataType = "Text";
+			break;
+	}
+	return ([data.varName2, dataType]);
 },
 
 //---------------------------------------------------------------------
@@ -48,49 +97,58 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["member", "varName", "dataName", "defaultVal", "storage", "varName2"],
+fields: ["member", "varName", "info", "storage", "varName2"],
 
 //---------------------------------------------------------------------
 // Command HTML
 //
 // This function returns a string containing the HTML used for
-// editting actions. 
+// editting actions.
 //
 // The "isEvent" parameter will be true if this action is being used
-// for an event. Due to their nature, events lack certain information, 
+// for an event. Due to their nature, events lack certain information,
 // so edit the HTML to reflect this.
 //
-// The "data" parameter stores constants for select elements to use. 
+// The "data" parameter stores constants for select elements to use.
 // Each is an array: index 0 for commands, index 1 for events.
-// The names are: sendTargets, members, roles, channels, 
+// The names are: sendTargets, members, roles, channels,
 //                messages, servers, variables
 //---------------------------------------------------------------------
 
 html: function(isEvent, data) {
 	return `
+	<div>
+		<p>
+			<u>Mod Info:</u><br>
+			Created by Lasse!
+		</p>
+	</div><br>
 <div>
 	<div style="float: left; width: 35%;">
-		Member:<br>
+		Source Member:<br>
 		<select id="member" class="round" onchange="glob.memberChange(this, 'varNameContainer')">
 			${data.members[isEvent ? 1 : 0]}
 		</select>
 	</div>
 	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList">
+		<input id="varName" class="round" type="text" list="variableList"><br>
 	</div>
 </div><br><br><br>
-<div style="padding-top: 8px;">
-	<div style="float: left; width: 40%;">
-		Data Name:<br>
-		<input id="dataName" class="round" type="text">
+<div>
+	<div style="padding-top: 8px; width: 70%;">
+		Source Info:<br>
+		<select id="info" class="round">
+			<option value="0" selected>Join Date</option>
+			<option value="1">Voice Channel</option>
+			<option value="2">Last Message</option>
+			<option value="6">Account Creation Date</option>
+			<option value="5">Discriminator (#0001)</option>
+			<option value="7">Tag (Lasse#0001)</option>
+		</select>
 	</div>
-	<div style="float: left; width: 60%;">
-		Default Value (if data doesn't exist):<br>
-		<input id="defaultVal" class="round" type="text" value="0">
-	</div>
-</div><br><br><br>
-<div style="padding-top: 8px;">
+</div><br>
+<div>
 	<div style="float: left; width: 35%;">
 		Store In:<br>
 		<select id="storage" class="round">
@@ -122,24 +180,58 @@ init: function() {
 // Action Bot Function
 //
 // This is the function for the action within the Bot's Action class.
-// Keep in mind event calls won't have access to the "msg" parameter, 
+// Keep in mind event calls won't have access to the "msg" parameter,
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const type = parseInt(data.member);
+	const member = parseInt(data.member);
 	const varName = this.evalMessage(data.varName, cache);
-	const member = this.getMember(type, varName, cache);
-	if(member && member.data) {
-		const dataName = this.evalMessage(data.dataName, cache);
-		const defVal = this.eval(this.evalMessage(data.defaultVal, cache), cache);
-		let result;
-		if(defVal === undefined) {
-			result = member.data(dataName);
-		} else {
-			result = member.data(dataName, defVal);
-		}
+	const info = parseInt(data.info);
+	const mem = this.getMember(member, varName, cache);
+	if(!mem) {
+		this.callNextAction(cache);
+		return;
+	}
+	const server = cache.server;
+	let result;
+	switch(info) {
+		case 0:
+			result = mem.joinedAt;
+			break;
+		case 1:
+			result = mem.voiceChannel; //Changed from VC ID to VC - v1.8.5
+		default:
+			break;
+		case 2:
+			result = mem.lastMessage;
+			break;
+		case 3: //Deprecated in 1.8.8 by Lasse because of the new "Check If Member" action
+			result = mem.kickable;
+			break;
+		case 4: //Deprecated in 1.8.8 by Lasse because of the new "Check If Member" action
+			if(mem.user) {
+				result = mem.user.bot;
+			}
+			break;
+		case 5:
+			if(mem.user) {
+				result = mem.user.discriminator;
+			}
+			break;
+		case 6:
+			if (mem.user) {
+				result = mem.user.createdAt;
+			}
+			break;
+		case 7:
+			if (mem.user) {
+				result = mem.user.tag;
+			}
+			break;
+	}
+	if(result !== undefined) {
 		const storage = parseInt(data.storage);
 		const varName2 = this.evalMessage(data.varName2, cache);
 		this.storeValue(result, storage, varName2, cache);

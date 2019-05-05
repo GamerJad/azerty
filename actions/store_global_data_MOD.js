@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Transform List",
+name: "Store Global Data",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Transform List",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Lists and Loops",
+section: "Deprecated",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,9 +23,29 @@ section: "Lists and Loops",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const list = ['Server Members', 'Server Channels', 'Server Roles', 'Server Emojis', 'All Bot Servers', 'Mentioned User Roles', 'Command Author Roles', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	return `Transform ${list[parseInt(data.list)]}`;
+	const storage = ['', 'Temp Variable', 'Server Variable', 'Global Variable'];
+	return `${storage[parseInt(data.storage)]} (${data.varName})`;
 },
+
+//---------------------------------------------------------------------
+// DBM Mods Manager Variables (Optional but nice to have!)
+//
+// These are variables that DBM Mods Manager uses to show information
+// about the mods for people to see in the list.
+//---------------------------------------------------------------------
+
+// Who made the mod (If not set, defaults to "DBM Mods")
+author: "MrGold",
+
+// The version of the mod (Defaults to 1.0.0)
+version: "1.9.5", //Added in 1.9.5
+
+// A short description to show on the mod line for this mod (Must be on a single line)
+short_description: "Stores a Global Data Value",
+
+// If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+//---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -36,7 +56,7 @@ subtitle: function(data) {
 variableStorage: function(data, varType) {
 	const type = parseInt(data.storage);
 	if(type !== varType) return;
-	return ([data.varName2, 'List']);
+	return ([data.varName, 'Unknown Type']);
 },
 
 //---------------------------------------------------------------------
@@ -47,7 +67,7 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["list", "varName", "transform", "null", "storage", "varName2"],
+fields: ["dataName", "defaultVal", "storage", "varName"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -67,28 +87,16 @@ fields: ["list", "varName", "transform", "null", "storage", "varName2"],
 
 html: function(isEvent, data) {
 	return `
-<div>
-	<div style="float: left; width: 35%;">
-		Source List:<br>
-		<select id="list" class="round" onchange="glob.listChange(this, 'varNameContainer')">
-			${data.lists[isEvent ? 1 : 0]}
-		</select>
+<div style="padding-top: 8px;">
+	<div style="float: left; width: 40%;">
+		Data Name:<br>
+		<input id="dataName" class="round" type="text">
 	</div>
-	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
-		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList">
+	<div style="float: left; width: 60%;">
+		Default Value (if data doesn't exist):<br>
+		<input id="defaultVal" class="round" type="text" value="0">
 	</div>
-</div><br><br><br><br>
-<div style="display: table; width: 100%;">
-	<div style="display: table-cell;">
-		Transform Eval:
-		<input id="transform" class="round" type="text" name="is-eval" value="item">
-	</div>
-	<div style="display: table-cell;">
-		Null Value:
-		<input id="null" class="round" type="text" name="is-eval">
-	</div>
-</div><br>
+</div><br><br><br>
 <div style="padding-top: 8px;">
 	<div style="float: left; width: 35%;">
 		Store In:<br>
@@ -96,9 +104,9 @@ html: function(isEvent, data) {
 			${data.variables[1]}
 		</select>
 	</div>
-	<div id="varNameContainer2" style="float: right; width: 60%;">
+	<div id="varNameContainer" style="float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName2" class="round" type="text">
+		<input id="varName" class="round" type="text"><br>
 	</div>
 </div>`
 },
@@ -111,11 +119,7 @@ html: function(isEvent, data) {
 // functions for the DOM elements.
 //---------------------------------------------------------------------
 
-init: function() {
-	const {glob, document} = this;
-
-	glob.listChange(document.getElementById('list'), 'varNameContainer');
-},
+init: function() {},
 
 //---------------------------------------------------------------------
 // Action Bot Function
@@ -127,45 +131,37 @@ init: function() {
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const storage = parseInt(data.list);
-	const varName = this.evalMessage(data.varName, cache);
-	const list = this.getList(storage, varName, cache);
 
-	let result = [];
-	const code = this.evalMessage(data.transform, cache);
-	const nullVal = this.evalMessage(data.null, cache);
-	let defaultVal;
+	const dataName = this.evalMessage(data.dataName, cache);
+	const defVal = this.eval(this.evalMessage(data.defaultVal, cache), cache);
 
-	try {
-		defaultVal = eval(nullVal);
-	} catch(e) {
-		this.displayError(data, cache, e);
-		defaultVal = '';
+	const fs = require("fs");
+	const path = require("path");
+
+	const filePath = path.join(process.cwd(), "data", "globals.json");
+
+	if(!fs.existsSync(filePath)) {
+		console.log("ERROR: Globals JSON file does not exist!");
+		this.callNextAction(cache);
+		return;
 	}
 
-	for(let i = 0; i < list.length; i++) {
-		const item = list[i];
-		try {
-			const val = eval(code);
-			if(val) {
-				result.push(val);
-			} else if(defaultVal) {
-				result.push(defaultVal);
-			}
-		} catch(e) {
-			this.displayError(data, cache, e);
-			if(defaultVal) {
-				result.push(defaultVal);
-			}
+	const obj = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+	
+	let result;
+	if(defVal) {
+		if(obj[dataName]) {
+			result = obj[dataName];
+	    } else {
+			result = defVal;
 		}
+	} else {
+		result = obj[dataName];
 	}
-
-	if(result) {
-		const varName2 = this.evalMessage(data.varName2, cache);
-		const storage2 = parseInt(data.storage);
-		this.storeValue(result, storage2, varName2, cache);
-	}
-
+	
+	const storage = parseInt(data.storage);
+	const varName = this.evalMessage(data.varName, cache);
+	this.storeValue(result, storage, varName, cache);
 	this.callNextAction(cache);
 },
 

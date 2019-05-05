@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Store Member Data",
+name: "Store Role Things",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Store Member Data",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Deprecated",
+section: "Role Control",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,10 +23,31 @@ section: "Deprecated",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const members = ['Mentioned User', 'Command Author', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	const storage = ['', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	return `${members[parseInt(data.member)]} - ${storage[parseInt(data.storage)]} (${data.varName2})`;
+	const roles = ['Mentioned Role', '1st Author Role', '1st Server Role', 'Temp Variable', 'Server Variable', 'Global Variable'];
+	const info = ['Position role list', 'Creation Date', 'Managed bot role?', 'Role Members', 'Role Members Amount', 'Can bot edit role?', 'Role Members Object', 'Role Members IDs']
+	return `${roles[parseInt(data.role)]} - ${info[parseInt(data.info)]}`;
 },
+
+//---------------------------------------------------------------------
+	 // DBM Mods Manager Variables (Optional but nice to have!)
+	 //
+	 // These are variables that DBM Mods Manager uses to show information
+	 // about the mods for people to see in the list.
+	 //---------------------------------------------------------------------
+
+	 // Who made the mod (If not set, defaults to "DBM Mods")
+	 author: "Lasse, EliteArtz",
+
+	 // The version of the mod (Defaults to 1.0.0)
+	 version: "1.8.2",
+
+	 // A short description to show on the mod line for this mod (Must be on a single line)
+	 short_description: "Stores Roles Information",
+
+	 // If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+
+	 //---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -37,7 +58,29 @@ subtitle: function(data) {
 variableStorage: function(data, varType) {
 	const type = parseInt(data.storage);
 	if(type !== varType) return;
-	return ([data.varName2, 'Unknown Type']);
+	const info = parseInt(data.info);
+	let dataType = 'Unknown Type';
+	switch(info) {
+		case 0:
+			dataType = 'Number';
+			break;
+		case 1:
+			dataType = 'Date';
+			break;
+		case 2:
+			dataType = 'Boolean';
+			break;
+		case 3:
+			dataType = 'Text';
+			break;
+		case 4:
+			dataType = 'Number';
+			break;
+		case 5:
+			dataType = 'Text';
+			break;
+	}
+	return ([data.varName2, dataType]);
 },
 
 //---------------------------------------------------------------------
@@ -48,49 +91,60 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["member", "varName", "dataName", "defaultVal", "storage", "varName2"],
+fields: ["role", "varName", "info", "storage", "varName2"],
 
 //---------------------------------------------------------------------
 // Command HTML
 //
 // This function returns a string containing the HTML used for
-// editting actions. 
+// editting actions.
 //
 // The "isEvent" parameter will be true if this action is being used
-// for an event. Due to their nature, events lack certain information, 
+// for an event. Due to their nature, events lack certain information,
 // so edit the HTML to reflect this.
 //
-// The "data" parameter stores constants for select elements to use. 
+// The "data" parameter stores constants for select elements to use.
 // Each is an array: index 0 for commands, index 1 for events.
-// The names are: sendTargets, members, roles, channels, 
+// The names are: sendTargets, members, roles, channels,
 //                messages, servers, variables
 //---------------------------------------------------------------------
 
 html: function(isEvent, data) {
 	return `
+	<div>
+		<p>
+			<u>Mod Info:</u><br>
+			Created by EliteArtz & Lasse!
+		</p>
+	</div><br>
 <div>
 	<div style="float: left; width: 35%;">
-		Member:<br>
-		<select id="member" class="round" onchange="glob.memberChange(this, 'varNameContainer')">
-			${data.members[isEvent ? 1 : 0]}
+		Source Role:<br>
+		<select id="role" class="round" onchange="glob.roleChange(this, 'varNameContainer')">
+			${data.roles[isEvent ? 1 : 0]}
 		</select>
 	</div>
 	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList">
+		<input id="varName" class="round" type="text" list="variableList"><br>
 	</div>
 </div><br><br><br>
-<div style="padding-top: 8px;">
-	<div style="float: left; width: 40%;">
-		Data Name:<br>
-		<input id="dataName" class="round" type="text">
+<div>
+	<div style="padding-top: 8px; width: 70%;">
+		Source Info:<br>
+		<select id="info" class="round">
+			<option value="0" selected>Postion in Role list</option>
+			<option value="1">Creation date</option>
+			<option value="2">Managed bot Role</option>
+			<option value="5">Can bot edit this role?</option>
+			<option value="3">Role Members</option>
+			<option value="4">Role Members Amount</option>
+			<option value="6">Role Members Objects</option>
+			<option value="7">Role Members IDs</option>
+		</select>
 	</div>
-	<div style="float: left; width: 60%;">
-		Default Value (if data doesn't exist):<br>
-		<input id="defaultVal" class="round" type="text" value="0">
-	</div>
-</div><br><br><br>
-<div style="padding-top: 8px;">
+</div><br>
+<div>
 	<div style="float: left; width: 35%;">
 		Store In:<br>
 		<select id="storage" class="round">
@@ -115,31 +169,57 @@ html: function(isEvent, data) {
 init: function() {
 	const {glob, document} = this;
 
-	glob.memberChange(document.getElementById('member'), 'varNameContainer');
+	glob.roleChange(document.getElementById('role'), 'varNameContainer')
 },
 
 //---------------------------------------------------------------------
 // Action Bot Function
 //
 // This is the function for the action within the Bot's Action class.
-// Keep in mind event calls won't have access to the "msg" parameter, 
+// Keep in mind event calls won't have access to the "msg" parameter,
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const type = parseInt(data.member);
+	const role = parseInt(data.role);
 	const varName = this.evalMessage(data.varName, cache);
-	const member = this.getMember(type, varName, cache);
-	if(member && member.data) {
-		const dataName = this.evalMessage(data.dataName, cache);
-		const defVal = this.eval(this.evalMessage(data.defaultVal, cache), cache);
-		let result;
-		if(defVal === undefined) {
-			result = member.data(dataName);
-		} else {
-			result = member.data(dataName, defVal);
-		}
+	const info = parseInt(data.info);
+	const targetRole = this.getRole(role, varName, cache);
+	if(!targetRole) {
+		this.callNextAction(cache);
+		return;
+	}
+	let result;
+	switch(info) {
+		case 0:
+			result = targetRole.calculatedPosition;
+			break;
+		case 1:
+			result = targetRole.createdAt;
+			break;
+		case 2:
+			result = targetRole.managed;
+			break;
+		case 3:
+			result = targetRole.members.array();
+			break;
+		case 4:
+			result = targetRole.members.array().length;
+			break;
+		case 5:
+			result = targetRole.editable;
+			break;
+		case 6:
+			result = targetRole.members.id; //Are that really objects @EliteArtz? lul
+			break;
+		case 7:
+			result = targetRole.members.map(member => member.id);
+			break;
+		default:
+			break;
+	}
+	if(result !== undefined) {
 		const storage = parseInt(data.storage);
 		const varName2 = this.evalMessage(data.varName2, cache);
 		this.storeValue(result, storage, varName2, cache);

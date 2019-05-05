@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Transform List",
+name: "Store Voice channel things",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Transform List",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Lists and Loops",
+section: "Channel Control",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,9 +23,33 @@ section: "Lists and Loops",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const list = ['Server Members', 'Server Channels', 'Server Roles', 'Server Emojis', 'All Bot Servers', 'Mentioned User Roles', 'Command Author Roles', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	return `Transform ${list[parseInt(data.list)]}`;
+	const channels = ['Command Author\'s Voice Ch.', 'Mentioned User\'s Voice Ch.', 'Default Voice Channel', 'Temp Variable', 'Server Variable', 'Global Variable'];
+	const info = ['Bot can speak?', 'Bot can join?', 'Bot can delete VC?', 'VCs position in VC list', 'Members connected'];
+	return `${channels[parseInt(data.channel)]} - ${info[parseInt(data.info)]}`;
 },
+
+//---------------------------------------------------------------------
+// DBM Mods Manager Variables (Optional but nice to have!)
+//
+// These are variables that DBM Mods Manager uses to show information
+// about the mods for people to see in the list.
+//---------------------------------------------------------------------
+
+// Who made the mod (If not set, defaults to "DBM Mods")
+author: "Lasse",
+
+// The version of the mod (Defaults to 1.0.0)
+version: "1.8.7", //Added in 1.8.2
+
+//1.8.7: Changed dropdown texts!
+
+// A short description to show on the mod line for this mod (Must be on a single line)
+short_description: "Stores Voice Channels Information",
+
+// If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+
+//---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -36,7 +60,26 @@ subtitle: function(data) {
 variableStorage: function(data, varType) {
 	const type = parseInt(data.storage);
 	if(type !== varType) return;
-	return ([data.varName2, 'List']);
+	const info = parseInt(data.info);
+	let dataType = 'Unknown Type';
+	switch(info) {
+		case 0:
+			dataType = "Boolean";
+			break;
+		case 1:
+			dataType = "Boolean";
+			break;
+		case 2:
+			dataType = "Boolean";
+			break;
+		case 3:
+			dataType = "Number";
+			break;
+		case 4:
+			dataTyple = "Array";
+			break;
+	}
+	return ([data.varName2, dataType]);
 },
 
 //---------------------------------------------------------------------
@@ -47,49 +90,57 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["list", "varName", "transform", "null", "storage", "varName2"],
+fields: ["channel", "varName", "info", "storage", "varName2"],
 
 //---------------------------------------------------------------------
 // Command HTML
 //
 // This function returns a string containing the HTML used for
-// editting actions. 
+// editting actions.
 //
 // The "isEvent" parameter will be true if this action is being used
-// for an event. Due to their nature, events lack certain information, 
+// for an event. Due to their nature, events lack certain information,
 // so edit the HTML to reflect this.
 //
-// The "data" parameter stores constants for select elements to use. 
+// The "data" parameter stores constants for select elements to use.
 // Each is an array: index 0 for commands, index 1 for events.
-// The names are: sendTargets, members, roles, channels, 
+// The names are: sendTargets, members, roles, channels,
 //                messages, servers, variables
 //---------------------------------------------------------------------
 
 html: function(isEvent, data) {
 	return `
+	<div>
+		<p>
+			<u>Mod Info:</u><br>
+			Created by Lasse!
+		</p>
+	</div><br>
 <div>
 	<div style="float: left; width: 35%;">
-		Source List:<br>
-		<select id="list" class="round" onchange="glob.listChange(this, 'varNameContainer')">
-			${data.lists[isEvent ? 1 : 0]}
+		Source Channel:<br>
+		<select id="channel" class="round" onchange="glob.voiceChannelChange(this, 'varNameContainer')">
+			${data.voiceChannels[isEvent ? 1 : 0]}
 		</select>
 	</div>
 	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList">
+		<input id="varName" class="round" type="text" list="variableList"><br>
 	</div>
-</div><br><br><br><br>
-<div style="display: table; width: 100%;">
-	<div style="display: table-cell;">
-		Transform Eval:
-		<input id="transform" class="round" type="text" name="is-eval" value="item">
-	</div>
-	<div style="display: table-cell;">
-		Null Value:
-		<input id="null" class="round" type="text" name="is-eval">
+</div><br><br><br>
+<div>
+	<div style="padding-top: 8px; width: 70%;">
+		Source Info:<br>
+		<select id="info" class="round">
+			<option value="0" selected>Can Bot Speak?</option>
+			<option value="1">Can Bot Join VC?</option>
+			<option value="2">Can Bot Delete VC?</option>
+			<option value="3">Position In VC List</option>
+			<option value="4">Connected Members</option>
+		</select>
 	</div>
 </div><br>
-<div style="padding-top: 8px;">
+<div>
 	<div style="float: left; width: 35%;">
 		Store In:<br>
 		<select id="storage" class="round">
@@ -98,7 +149,7 @@ html: function(isEvent, data) {
 	</div>
 	<div id="varNameContainer2" style="float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName2" class="round" type="text">
+		<input id="varName2" class="round" type="text"><br>
 	</div>
 </div>`
 },
@@ -114,59 +165,55 @@ html: function(isEvent, data) {
 init: function() {
 	const {glob, document} = this;
 
-	glob.listChange(document.getElementById('list'), 'varNameContainer');
+	glob.voiceChannelChange(document.getElementById('channel'), 'varNameContainer');
 },
 
 //---------------------------------------------------------------------
 // Action Bot Function
 //
 // This is the function for the action within the Bot's Action class.
-// Keep in mind event calls won't have access to the "msg" parameter, 
+// Keep in mind event calls won't have access to the "msg" parameter,
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const storage = parseInt(data.list);
+	const channel = parseInt(data.channel);
 	const varName = this.evalMessage(data.varName, cache);
-	const list = this.getList(storage, varName, cache);
-
-	let result = [];
-	const code = this.evalMessage(data.transform, cache);
-	const nullVal = this.evalMessage(data.null, cache);
-	let defaultVal;
-
-	try {
-		defaultVal = eval(nullVal);
-	} catch(e) {
-		this.displayError(data, cache, e);
-		defaultVal = '';
+	const info = parseInt(data.info);
+	const targetChannel = this.getVoiceChannel(channel, varName, cache);
+	if(!targetChannel) {
+		this.callNextAction(cache);
+		return;
 	}
-
-	for(let i = 0; i < list.length; i++) {
-		const item = list[i];
-		try {
-			const val = eval(code);
-			if(val) {
-				result.push(val);
-			} else if(defaultVal) {
-				result.push(defaultVal);
-			}
-		} catch(e) {
-			this.displayError(data, cache, e);
-			if(defaultVal) {
-				result.push(defaultVal);
-			}
-		}
+	let result;
+	switch(info) {
+		case 0:
+			result = targetChannel.speakable;
+			break;
+		case 1:
+			result = targetChannel.joinable;
+			break;
+		case 2:
+			result = targetChannel.deletable;
+			break;
+		case 3:
+			result = targetChannel.position;
+			break;
+		case 4:
+			result = targetChannel.members.array();
+			break;
+		default:
+			break;
 	}
-
-	if(result) {
+	if(result !== undefined) {
+		const storage = parseInt(data.storage);
 		const varName2 = this.evalMessage(data.varName2, cache);
-		const storage2 = parseInt(data.storage);
-		this.storeValue(result, storage2, varName2, cache);
+		this.storeValue(result, storage, varName2, cache);
+		this.callNextAction(cache);
+	} else {
+		this.callNextAction(cache);
 	}
-
-	this.callNextAction(cache);
 },
 
 //---------------------------------------------------------------------

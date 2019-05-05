@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Store Member Data",
+name: "Store Message Things",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Store Member Data",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Deprecated",
+section: "Messaging",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,10 +23,31 @@ section: "Deprecated",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	const members = ['Mentioned User', 'Command Author', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	const storage = ['', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	return `${members[parseInt(data.member)]} - ${storage[parseInt(data.storage)]} (${data.varName2})`;
+	const message = ['Command Message', 'Temp Variable', 'Server Variable', 'Global Variable'];
+	const info = ['Message edited at', 'Message edits history', 'Message is pinnable?', 'Message includes @everyone mention?', 'Messages different reactions count', 'Mentioned users list', 'Mentioned users count'];
+	return `${message[parseInt(data.message)]} - ${info[parseInt(data.info)]}`;
 },
+
+//---------------------------------------------------------------------
+	 // DBM Mods Manager Variables (Optional but nice to have!)
+	 //
+	 // These are variables that DBM Mods Manager uses to show information
+	 // about the mods for people to see in the list.
+	 //---------------------------------------------------------------------
+
+	 // Who made the mod (If not set, defaults to "DBM Mods")
+	 author: "Lasse",
+
+	 // The version of the mod (Defaults to 1.0.0)
+	 version: "1.8.2",
+
+	 // A short description to show on the mod line for this mod (Must be on a single line)
+	 short_description: "Stores Messages Information",
+
+	 // If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+
+	 //---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -37,7 +58,32 @@ subtitle: function(data) {
 variableStorage: function(data, varType) {
 	const type = parseInt(data.storage);
 	if(type !== varType) return;
-	return ([data.varName2, 'Unknown Type']);
+	const info = parseInt(data.info);
+	let dataType = 'Unknown Type';
+	switch(info) {
+		case 0:
+			dataType = "Date";
+			break;
+		case 1:
+			dataType = "Array";
+			break;
+		case 2:
+			dataType = "Boolean";
+			break;
+		case 3:
+			dataType = "Boolean";
+			break;
+		case 4:
+			dataType = "Number";
+			break;
+		case 5:
+			dataType = "Array";
+			break;
+		case 6:
+			dataType = "Number";
+			break;
+	}
+	return ([data.varName2, dataType]);
 },
 
 //---------------------------------------------------------------------
@@ -48,49 +94,59 @@ variableStorage: function(data, varType) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["member", "varName", "dataName", "defaultVal", "storage", "varName2"],
+fields: ["message", "varName", "info", "storage", "varName2"],
 
 //---------------------------------------------------------------------
 // Command HTML
 //
 // This function returns a string containing the HTML used for
-// editting actions. 
+// editting actions.
 //
 // The "isEvent" parameter will be true if this action is being used
-// for an event. Due to their nature, events lack certain information, 
+// for an event. Due to their nature, events lack certain information,
 // so edit the HTML to reflect this.
 //
-// The "data" parameter stores constants for select elements to use. 
+// The "data" parameter stores constants for select elements to use.
 // Each is an array: index 0 for commands, index 1 for events.
-// The names are: sendTargets, members, roles, channels, 
+// The names are: sendTargets, members, roles, channels,
 //                messages, servers, variables
 //---------------------------------------------------------------------
 
 html: function(isEvent, data) {
 	return `
+	<div>
+		<p>
+			<u>Mod Info:</u><br>
+			Created by Lasse!
+		</p>
+	</div><br>
 <div>
 	<div style="float: left; width: 35%;">
-		Member:<br>
-		<select id="member" class="round" onchange="glob.memberChange(this, 'varNameContainer')">
-			${data.members[isEvent ? 1 : 0]}
+		Source Message:<br>
+		<select id="message" class="round" onchange="glob.messageChange(this, 'varNameContainer')">
+			${data.messages[isEvent ? 1 : 0]}
 		</select>
 	</div>
 	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
 		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList">
+		<input id="varName" class="round" type="text" list="variableList"><br>
 	</div>
 </div><br><br><br>
-<div style="padding-top: 8px;">
-	<div style="float: left; width: 40%;">
-		Data Name:<br>
-		<input id="dataName" class="round" type="text">
+<div>
+	<div style="padding-top: 8px; width: 70%;">
+		Source Info:<br>
+		<select id="info" class="round">
+			<option value="0" selected>Message edited at</option>
+			<option value="1">Message edit history</option>
+			<option value="2">Message is pinnable?</option>
+			<option value="3">Message includes @everyone mention?</option>
+			<option value="4">Messages different reactions count</option>
+			<option value="5">Messages mentioned users list</option>
+			<option value="6">Messages mentioned users count</option>
+		</select>
 	</div>
-	<div style="float: left; width: 60%;">
-		Default Value (if data doesn't exist):<br>
-		<input id="defaultVal" class="round" type="text" value="0">
-	</div>
-</div><br><br><br>
-<div style="padding-top: 8px;">
+</div><br>
+<div>
 	<div style="float: left; width: 35%;">
 		Store In:<br>
 		<select id="storage" class="round">
@@ -115,31 +171,54 @@ html: function(isEvent, data) {
 init: function() {
 	const {glob, document} = this;
 
-	glob.memberChange(document.getElementById('member'), 'varNameContainer');
+	glob.messageChange(document.getElementById('message'), 'varNameContainer')
 },
 
 //---------------------------------------------------------------------
 // Action Bot Function
 //
 // This is the function for the action within the Bot's Action class.
-// Keep in mind event calls won't have access to the "msg" parameter, 
+// Keep in mind event calls won't have access to the "msg" parameter,
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const type = parseInt(data.member);
+	const message = parseInt(data.message);
 	const varName = this.evalMessage(data.varName, cache);
-	const member = this.getMember(type, varName, cache);
-	if(member && member.data) {
-		const dataName = this.evalMessage(data.dataName, cache);
-		const defVal = this.eval(this.evalMessage(data.defaultVal, cache), cache);
-		let result;
-		if(defVal === undefined) {
-			result = member.data(dataName);
-		} else {
-			result = member.data(dataName, defVal);
-		}
+	const info = parseInt(data.info);
+	const msg = this.getMessage(message, varName, cache);
+	if(!msg) {
+		this.callNextAction(cache);
+		return;
+	}
+	let result;
+	switch(info) {
+		case 0:
+			result = msg.editedAt;
+			break;
+		case 1:
+			result = msg.edits;
+			break;
+		case 2:
+			result = msg.pinnable;
+			break;
+		case 3:
+			result = msg.mentions.everyone;
+			break;
+		case 4:
+			result = msg.reactions.array().length;
+			break;
+		case 5:
+			result = msg.mentions.users.array();
+			break;
+		case 6:
+			result = msg.mentions.users.array().length;
+			break;
+		default:
+			break;
+	}
+	if(result !== undefined) {
 		const storage = parseInt(data.storage);
 		const varName2 = this.evalMessage(data.varName2, cache);
 		this.storeValue(result, storage, varName2, cache);

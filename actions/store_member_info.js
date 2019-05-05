@@ -24,9 +24,30 @@ section: "Member Control",
 
 subtitle: function(data) {
 	const members = ['Mentioned User', 'Command Author', 'Temp Variable', 'Server Variable', 'Global Variable'];
-	const info = ['Member Object', 'Member ID', 'Member Username', 'Member Display Name', 'Member Color', 'Member Server', 'Member Last Message', 'Member Highest Role', 'Member Hoist Role', 'Member Color Role', 'Member Is Owner?', 'Member Is Muted?', 'Member Is Deafened?', 'Member Is Bannable?', 'Member Game', 'Member Status', 'Member Avatar URL'];
+	const info = ['Member Object', 'Member ID', 'Member Username', 'Member Display Name', 'Member Color', 'Member Server', 'Member Last Message', 'Member Highest Role', 'Member Hoist Role', 'Member Color Role', 'Member Is Owner?', 'Member Is Muted?', 'Member Is Deafened?', 'Member Is Bannable?', 'Member Game', 'Member Status', 'Member Avatar URL', 'Member Role List', 'Member Join Date', 'Member Voice Channel', 'Member Discrim', 'Member Account Creation Date', 'Member Tag'];
 	return `${members[parseInt(data.member)]} - ${info[parseInt(data.info)]}`;
 },
+
+//---------------------------------------------------------------------
+// DBM Mods Manager Variables (Optional but nice to have!)
+//
+// These are variables that DBM Mods Manager uses to show information
+// about the mods for people to see in the list.
+//---------------------------------------------------------------------
+
+// Who made the mod (If not set, defaults to "DBM Mods")
+author: "DBM & Lasse",
+
+// The version of the mod (Defaults to 1.0.0)
+version: "1.9.2", //Added in 1.9.2
+
+// A short description to show on the mod line for this mod (Must be on a single line)
+short_description: "Added more options to default action.",
+
+// If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+
+//---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -48,6 +69,8 @@ variableStorage: function(data, varType) {
 			break;
 		case 2:
 		case 3:
+		case 20:
+		case 22:
 			dataType = "Text";
 			break;
 		case 4:
@@ -76,6 +99,16 @@ variableStorage: function(data, varType) {
 			break;
 		case 16:
 			dataType = "Image URL";
+			break;
+		case 17:
+			dataType = "List";
+			break;
+		case 21:
+		case 18:
+			dataType = "Date";
+			break;
+		case 19:
+			dataType = "Voice Channel";
 			break;
 	}
 	return ([data.varName2, dataType]);
@@ -109,6 +142,7 @@ fields: ["member", "varName", "info", "storage", "varName2"],
 
 html: function(isEvent, data) {
 	return `
+	<div><p>This action has been modified by DBM Mods.</p></div><br>
 <div>
 	<div style="float: left; width: 35%;">
 		Source Member:<br>
@@ -129,11 +163,16 @@ html: function(isEvent, data) {
 			<option value="1">Member ID</option>
 			<option value="2">Member Username</option>
 			<option value="3">Member Display Name</option>
+			<option value="20">Member Discrim (#XXXX)</option>
+			<option value="22">Member Tag (User#XXXX)</option>
 			<option value="4">Member Color</option>
 			<option value="14">Member Game</option>
 			<option value="15">Member Status</option>
 			<option value="16">Member Avatar URL</option>
 			<option value="5">Member Server</option>
+			<option value="18">Member Join Date</option>
+			<option value="21">Member Account Creation Date</option>
+			<option value="19">Member Voice Channel</option>
 			<option value="6">Member Last Message</option>
 			<option value="17">Member Role List</option>
 			<option value="7">Member Highest Role</option>
@@ -263,6 +302,27 @@ action: function(cache) {
 		case 17:
 			if(mem.roles) {
 				result = mem.roles.array();
+			}
+			break;
+		case 18:
+			result = mem.joinedAt;
+			break;
+		case 19:
+			result = mem.voiceChannel;
+			break;
+		case 20:
+			if(mem.user) {
+				result = mem.user.discriminator;
+			}
+			break;
+		case 21:
+			if (mem.user) {
+				result = mem.user.createdAt;
+			}
+			break;
+		case 22:
+			if (mem.user) {
+				result = mem.user.tag;
 			}
 			break;
 		default:
