@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Check Member Data",
+name: "Check Global Data",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -27,21 +27,25 @@ subtitle: function(data) {
 	return `If True: ${results[parseInt(data.iftrue)]} ~ If False: ${results[parseInt(data.iffalse)]}`;
 },
 
-	//---------------------------------------------------------------------
-		 // DBM Mods Manager Variables (Optional but nice to have!)
-		 //
-		 // These are variables that DBM Mods Manager uses to show information
-		 // about the mods for people to see in the list.
-		 //---------------------------------------------------------------------
-	
-		 // Who made the mod (If not set, defaults to "DBM Mods")
-		 author: "DBM & NetLuis",
-	
-		 // The version of the mod (Defaults to 1.0.0)
-		 version: "1.9.4", //Added in 1.9.4
-	
-		 // A short description to show on the mod line for this mod (Must be on a single line)
-		 short_description: "Added more options to default action.",
+//---------------------------------------------------------------------
+// DBM Mods Manager Variables (Optional but nice to have!)
+//
+// These are variables that DBM Mods Manager uses to show information
+// about the mods for people to see in the list.
+//---------------------------------------------------------------------
+
+// Who made the mod (If not set, defaults to "DBM Mods")
+author: "MrGold",
+
+// The version of the mod (Defaults to 1.0.0)
+version: "1.9.5", //Added in 1.9.5
+
+// A short description to show on the mod line for this mod (Must be on a single line)
+short_description: "Check if a Global Data Value meets the conditions",
+
+// If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+
+//---------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 // Action Fields
@@ -51,7 +55,7 @@ subtitle: function(data) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["member", "varName", "dataName", "comparison", "value", "iftrue", "iftrueVal", "iffalse", "iffalseVal"],
+fields: ["dataName", "comparison", "value", "iftrue", "iftrueVal", "iffalse", "iffalseVal"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -71,19 +75,6 @@ fields: ["member", "varName", "dataName", "comparison", "value", "iftrue", "iftr
 
 html: function(isEvent, data) {
 	return `
-	<div><p>This action has been modified by DBM Mods.</p></div><br>
-<div>
-	<div style="float: left; width: 35%;">
-		Member:<br>
-		<select id="member" class="round" onchange="glob.memberChange(this, 'varNameContainer')">
-			${data.members[isEvent ? 1 : 0]}
-		</select>
-	</div>
-	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
-		Variable Name:<br>
-		<input id="varName" class="round" type="text" list="variableList">
-	</div>
-</div><br><br><br>
 <div style="padding-top: 8px;">
 	<div style="float: left; width: 50%;">
 		Data Name:<br>
@@ -99,11 +90,6 @@ html: function(isEvent, data) {
 			<option value="4">Greater Than</option>
 			<option value="5">Includes</option>
 			<option value="6">Matches Regex</option>
-			<option value="7">Length is Bigger Than</option>
-			<option value="8">Length is Smaller Than</option>
-			<option value="9">Length Equals</option>
-			<option value="10">Starts With</option>
-			<option value="11">Ends With</option>
 		</select>
 	</div>
 </div><br><br><br>
@@ -127,7 +113,6 @@ html: function(isEvent, data) {
 init: function() {
 	const {glob, document} = this;
 
-	glob.memberChange(document.getElementById('member'), 'varNameContainer');
 	glob.onChangeTrue(document.getElementById('iftrue'));
 	glob.onChangeFalse(document.getElementById('iffalse'));
 },
@@ -142,57 +127,55 @@ init: function() {
 
 action: function(cache) {
 	const data = cache.actions[cache.index];
-	const type = parseInt(data.member);
-	const varName = this.evalMessage(data.varName, cache);
-	const member = this.getMember(type, varName, cache);
+
 	let result = false;
-	if(member && member.data) {
-		const dataName = this.evalMessage(data.dataName, cache);
-		const val1 = member.data(dataName);
-		const compare = parseInt(data.comparison);
-		let val2 = this.evalMessage(data.value, cache);
-		if(compare !== 6) val2 = this.eval(val2, cache);
-		if(val2 === false) val2 = this.evalMessage(data.value, cache);
-		switch(compare) {
-			case 0:
-				result = Boolean(val1 !== undefined);
-				break;
-			case 1:
-				result = Boolean(val1 == val2);
-				break;
-			case 2:
-				result = Boolean(val1 === val2);
-				break;
-			case 3:
-				result = Boolean(val1 < val2);
-				break;
-			case 4:
-				result = Boolean(val1 > val2);
-				break;
-			case 5:
-				if(typeof(val1.includes) === 'function') {
-					result = Boolean(val1.includes(val2));
-				}
-				break;
-			case 6:
-				result = Boolean(val1.match(new RegExp('^' + val2 + '$', 'i')));
-				break;
-			case 7: // Case 7-11 Added by NetLuis
-				result = Boolean(val1.length > val2);
-				break;
-			case 8:
-				result = Boolean(val1.length < val2);
-				break;
-			case 9:
-			  result = Boolean(val1.length == val2);
-			  break;
-			case 10:
-			  result = val1.startsWith(val2);
-			  break;
-			case 11:
-			  result = val1.endsWith(val2);
-			  break;
-		}
+
+	const dataName = this.evalMessage(data.dataName, cache);
+	const compare = parseInt(data.comparison);
+
+	const fs = require("fs");
+	const path = require("path");
+
+	const filePath = path.join(process.cwd(), "data", "globals.json");
+
+	if(!fs.existsSync(filePath)) {
+		console.log("ERROR: Globals JSON file does not exist!");
+		this.callNextAction(cache);
+		return;
+	}
+
+	const obj = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+	const val1 = obj[dataName];
+
+	let val2 = this.evalMessage(data.value, cache);
+	if(compare !== 6) val2 = this.eval(val2, cache);
+	if(val2 === false) val2 = this.evalMessage(data.value, cache);
+	
+	switch(compare) {
+		case 0:
+			result = Boolean(val1 !== undefined);
+			break;
+		case 1:
+			result = Boolean(val1 == val2);
+			break;
+		case 2:
+			result = Boolean(val1 === val2);
+			break;
+		case 3:
+			result = Boolean(val1 < val2);
+			break;
+		case 4:
+			result = Boolean(val1 > val2);
+			break;
+		case 5:
+			if(typeof(val1.includes) === 'function') {
+				result = Boolean(val1.includes(val2));
+			}
+			break;
+		case 6:
+			result = Boolean(val1.match(new RegExp('^' + val2 + '$', 'i')));
+			break;
 	}
 	this.executeResults(result, data, cache);
 },

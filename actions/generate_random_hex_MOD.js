@@ -6,25 +6,8 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Change Global Prefix",
+name: "Generate Random Hex Color",
 
-//---------------------------------------------------------------------
-// Action Section
-//
-// This is the section the action will fall into.
-//---------------------------------------------------------------------
-
-section: "Bot Client Control",
-
-//---------------------------------------------------------------------
-// Action Subtitle
-//
-// This function generates the subtitle displayed next to the name.
-//---------------------------------------------------------------------
-
-subtitle: function(data) {
-	return `Change Prefix`;
-},
 
 //---------------------------------------------------------------------
 	 // DBM Mods Manager Variables (Optional but nice to have!)
@@ -34,18 +17,31 @@ subtitle: function(data) {
 	 //---------------------------------------------------------------------
 
 	 // Who made the mod (If not set, defaults to "DBM Mods")
-	 author: "EliteArtz & General Wrex",
+	 author: "Jakob",
 
 	 // The version of the mod (Defaults to 1.0.0)
-	 version: "1.9.1", // original 1.8.4 | re-added in 1.9.1 ~ Danno3817
+	 version: "1.8.6", // Added in 1.8.6
 
 	 // A short description to show on the mod line for this mod (Must be on a single line)
-	 short_description: "Change Prefix from Bot",
+	 short_description: "Generates a random hex color code",
 
-	 // If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
+//---------------------------------------------------------------------
+// Action Section
+//
+// This is the section the action will fall into.
+//---------------------------------------------------------------------
 
+section: "Other Stuff",
 
-	 //---------------------------------------------------------------------
+//---------------------------------------------------------------------
+// Action Subtitle
+//
+// This function generates the subtitle displayed next to the name.
+//---------------------------------------------------------------------
+
+subtitle: function(data) {
+	return `Generates random hex color code`;
+},
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -53,7 +49,11 @@ subtitle: function(data) {
 // Stores the relevant variable info for the editor.
 //---------------------------------------------------------------------
 
-//variableStorage: function(data, varType) {},
+variableStorage: function(data, varType) {
+	const type = parseInt(data.storage);
+	if(type !== varType) return;
+	return ([data.varName, 'Color Code']);
+},
 
 //---------------------------------------------------------------------
 // Action Fields
@@ -63,7 +63,7 @@ subtitle: function(data) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["pprefix"],
+fields: ["storage", "varName"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -83,18 +83,25 @@ fields: ["pprefix"],
 
 html: function(isEvent, data) {
 	return `
+</div>
+		<p>
+			<u>Mod Info:</u><br>
+			Created by Jakob!<br>
+			For Embed Messages colors you can also insert RANDOM into the color field.
+		</p>
+	</div><br>
 <div>
-	<p>
-		<u>Mod Info:</u><br>
-		Made by EliteArtz<br>
-	</p>
-    <p>
-        <u>Thanks to:</u><br>
-        General Wrex for helping with scripting<br>
-    </p>
-    Change Prefix to:<br>
-	<textarea id="pprefix" class="round" style="width: 40%; resize: none;" type="textarea" rows="1" cols="20"></textarea><br><br>
-</div>`;
+	<div style="float: left; width: 35%;">
+		Store In:<br>
+		<select id="storage" class="round" onchange="glob.variableChange(this, 'varNameContainer')">
+			${data.variables[0]}
+		</select>
+	</div>
+	<div id="varNameContainer" style="display: none; float: right; width: 60%;">
+		Variable Name:<br>
+		<input id="varName" class="round" type="text">
+	</div>
+</div>`
 },
 
 //---------------------------------------------------------------------
@@ -105,7 +112,11 @@ html: function(isEvent, data) {
 // functions for the DOM elements.
 //---------------------------------------------------------------------
 
-init: function() {},
+init: function() {
+	const {glob, document} = this;
+
+	glob.variableChange(document.getElementById('storage'), 'varNameContainer');
+},
 
 //---------------------------------------------------------------------
 // Action Bot Function
@@ -115,24 +126,14 @@ init: function() {},
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
-action: function (cache) {
-    const data = cache.actions[cache.index];
-
-    try {
-
-        var prefix = this.evalMessage(data.pprefix, cache);
-        if (prefix) {
-            this.getDBM().Files.data.settings.tag = prefix;
-            this.getDBM().Files.saveData("settings", function () { console.log("Prefix changed to " + prefix) });
-        } else {
-            console.log(prefix + " is not valid! Try again!");
-        }
-    } catch (err) {
-        console.log("ERROR!" + err.stack ? err.stack : err);
-    }
-    this.callNextAction(cache);
+action: function(cache) {
+	const data = cache.actions[cache.index];
+	const type = parseInt(data.storage);
+	const varName = this.evalMessage(data.varName, cache);
+	const code = "000000".replace(/0/g,function(){return (~~(Math.random()*16)).toString(16);});
+	this.storeValue('#' + code, type, varName, cache);
+	this.callNextAction(cache);
 },
-
 //---------------------------------------------------------------------
 // Action Bot Mod
 //
@@ -142,7 +143,6 @@ action: function (cache) {
 // functions you wish to overwrite.
 //---------------------------------------------------------------------
 
-mod: function(DBM) {
-}
+mod: function(DBM) {}
 
 }; // End of module

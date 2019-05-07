@@ -6,7 +6,7 @@ module.exports = {
 // This is the name of the action displayed in the editor.
 //---------------------------------------------------------------------
 
-name: "Change Global Prefix",
+name: "Split",
 
 //---------------------------------------------------------------------
 // Action Section
@@ -14,7 +14,7 @@ name: "Change Global Prefix",
 // This is the section the action will fall into.
 //---------------------------------------------------------------------
 
-section: "Bot Client Control",
+section: "Other Stuff",
 
 //---------------------------------------------------------------------
 // Action Subtitle
@@ -23,29 +23,26 @@ section: "Bot Client Control",
 //---------------------------------------------------------------------
 
 subtitle: function(data) {
-	return `Change Prefix`;
+	return `Split anything!`;
 },
 
 //---------------------------------------------------------------------
-	 // DBM Mods Manager Variables (Optional but nice to have!)
-	 //
-	 // These are variables that DBM Mods Manager uses to show information
-	 // about the mods for people to see in the list.
-	 //---------------------------------------------------------------------
+	// DBM Mods Manager Variables (Optional but nice to have!)
+	//
+	// These are variables that DBM Mods Manager uses to show information
+	// about the mods for people to see in the list.
+	//---------------------------------------------------------------------
 
-	 // Who made the mod (If not set, defaults to "DBM Mods")
-	 author: "EliteArtz & General Wrex",
+	// Who made the mod (If not set, defaults to "DBM Mods")
+	author: "Sopy",
 
-	 // The version of the mod (Defaults to 1.0.0)
-	 version: "1.9.1", // original 1.8.4 | re-added in 1.9.1 ~ Danno3817
+	// The version of the mod (Defaults to 1.0.0)
+	version: "1.9", //Added in 1.9
 
-	 // A short description to show on the mod line for this mod (Must be on a single line)
-	 short_description: "Change Prefix from Bot",
+	// A short description to show on the mod line for this mod (Must be on a single line)
+	short_description: "Split anything!",
 
-	 // If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
-
-
-	 //---------------------------------------------------------------------
+	// If it depends on any other mods by name, ex: WrexMODS if the mod uses something from WrexMods
 
 //---------------------------------------------------------------------
 // Action Storage Function
@@ -53,8 +50,12 @@ subtitle: function(data) {
 // Stores the relevant variable info for the editor.
 //---------------------------------------------------------------------
 
-//variableStorage: function(data, varType) {},
-
+variableStorage: function(data, varType) {
+	const type = parseInt(data.storage);
+	if(type !== varType) return;
+	let dataType = 'Sliced Result';
+	return ([data.varName, dataType]);
+},
 //---------------------------------------------------------------------
 // Action Fields
 //
@@ -63,7 +64,7 @@ subtitle: function(data) {
 // are also the names of the fields stored in the action's JSON data.
 //---------------------------------------------------------------------
 
-fields: ["pprefix"],
+fields: ["split", "spliton", "storage", "varName"],
 
 //---------------------------------------------------------------------
 // Command HTML
@@ -83,18 +84,31 @@ fields: ["pprefix"],
 
 html: function(isEvent, data) {
 	return `
-<div>
+<div id ="wrexdiv" style="width: 550px; height: 350px; overflow-y: scroll;">
+<div id="modinfo">
 	<p>
-		<u>Mod Info:</u><br>
-		Made by EliteArtz<br>
-	</p>
-    <p>
-        <u>Thanks to:</u><br>
-        General Wrex for helping with scripting<br>
-    </p>
-    Change Prefix to:<br>
-	<textarea id="pprefix" class="round" style="width: 40%; resize: none;" type="textarea" rows="1" cols="20"></textarea><br><br>
-</div>`;
+	   <u>Mod Info:</u><br>
+Made by Sopy<br>Fixed and Edited by MrGold & NetLuis<br><br><u>How to use:</u><br>After you split and save (ex. \${tempVars("splited")}\) in order to use the a chunk somewhere you shoud place [Chunk number] after the variable name (ex. \${tempVars("splited")[0]}\)<br> Counting starts from 0 not from 1!
+	</p></div><br>
+	<div padding-top: 8px;">
+		Split Text:<br>
+		<textarea id="split" rows="2" placeholder="Insert text here..." style="width: 99%; font-family: monospace; white-space: nowrap; resize: none;"></textarea>
+</div><br>
+	<div style="float: left; width: 45%; padding-top: 8px;">
+	   Split on:<br>
+	   <input id="spliton" class="round" type="text">
+</div><br><br><br><br>
+	<div style="float: left; width: 35%;">
+		Store In:<br>
+		<select id="storage" class="round">
+			${data.variables[1]}
+		</select>
+	</div>
+	<div id="varNameContainer" style="float: right; width: 60%;">
+		Variable Name:<br>
+		<input id="varName" class="round" type="text"><br>
+	</div>
+</div>`
 },
 
 //---------------------------------------------------------------------
@@ -105,7 +119,11 @@ html: function(isEvent, data) {
 // functions for the DOM elements.
 //---------------------------------------------------------------------
 
-init: function() {},
+init: function() {
+	const {glob, document} = this;
+
+	glob.variableChange(document.getElementById('storage'), 'varNameContainer');
+},
 
 //---------------------------------------------------------------------
 // Action Bot Function
@@ -115,22 +133,19 @@ init: function() {},
 // so be sure to provide checks for variable existance.
 //---------------------------------------------------------------------
 
-action: function (cache) {
-    const data = cache.actions[cache.index];
+action: function(cache) {
 
-    try {
+	const data = cache.actions[cache.index];
+	const texttosplit = this.evalMessage(data.split, cache);
+	const spliton = this.evalMessage(data.spliton, cache);
+	if(!texttosplit) return console.log("No text has been given for getting split.");
+	if(!spliton) return console.log("Something is missing...");
+	result = `${texttosplit}`.split(`${spliton}`);
+	const storage = parseInt(data.storage);
+	const varName = this.evalMessage(data.varName, cache);
+	this.storeValue(result, storage, varName, cache);
 
-        var prefix = this.evalMessage(data.pprefix, cache);
-        if (prefix) {
-            this.getDBM().Files.data.settings.tag = prefix;
-            this.getDBM().Files.saveData("settings", function () { console.log("Prefix changed to " + prefix) });
-        } else {
-            console.log(prefix + " is not valid! Try again!");
-        }
-    } catch (err) {
-        console.log("ERROR!" + err.stack ? err.stack : err);
-    }
-    this.callNextAction(cache);
+	this.callNextAction(cache);
 },
 
 //---------------------------------------------------------------------
